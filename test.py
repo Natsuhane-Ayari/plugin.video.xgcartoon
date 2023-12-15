@@ -4,6 +4,14 @@ import json
 
 user_agent = {'user-agent':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.71'}
 
+def pdir(data):
+    loca = 0
+    for i in range(len(data)):
+        if data[i] == "/":
+            loca = i
+    parent_node = data[:loca:]
+    return parent_node
+
 def getEPmenu(url): #訪問選集頁面(取得集數清單)
     res = requests.get(url,headers=user_agent).text
     soup = bs4.BeautifulSoup(res,'html.parser')
@@ -14,7 +22,7 @@ def getEPmenu(url): #訪問選集頁面(取得集數清單)
 def getResolution(url): #挑選一集之後取得m3u8網址
     res = requests.get(url,headers=user_agent).text
     soup = bs4.BeautifulSoup(res,'html.parser')
-    vid = soup.find("iframe").get("src").split('=')[1].split('&')[0]
+    vid = soup.find("iframe").get("src")
     #print("https://xgct-video.vzcdn.net/%s/playlist.m3u8"%(vid))
     res = requests.get("https://xgct-video.vzcdn.net/%s/playlist.m3u8"%(vid))
     open("playlist.m3u8","wb").write(res.content)
@@ -66,11 +74,32 @@ def haveTWsub(url):
     else:
         return False
 
+def getResolution2(ctid,epid):
+    res = requests.get("https://www.xgcartoon.com/user/page_direct?cartoon_id=%s&chapter_id=%s"%(ctid,epid),headers=user_agent).text
+    soup = bs4.BeautifulSoup(res,'html.parser')
+    framesrc = soup.find("iframe").get("src")
+
+    res = requests.get(framesrc,headers=user_agent).text
+    soup = bs4.BeautifulSoup(res,'html.parser')
+    res = requests.get(soup.find("source").get("src"),headers=user_agent).text
+    
+    open("xgplaylist.m3u8","w").write(res)
+    f = open("xgplaylist.m3u8","r")
+    m3u8list = f.readlines()
+    f.close()
+    for i in range(len(m3u8list)-1,-1,-1):
+        if m3u8list[i][0]!='#':
+            resolution = m3u8list[i].split('/')[0]
+            print("%s/%s/video.m3u8"%(pdir(soup.find("source").get("src")),resolution))
+
 #getEPmenu("https://www.xgcartoon.com/detail/dianqishaonvguoyu-dingdang")
 #print(getResolution("https://www.xgcartoon.com/user/page_direct?cartoon_id=tianshijianglindaolewoshenbianriyu-liangmu&chapter_id=X6yDcUxEza"))
 #search("電器")
 #getSubtitles("https://pframe.xgcartoon.com/player.htm?vid=1e99fd32-b3b1-4706-967d-df9c8a3340f3&autoplay=false")
 #typefil()
 #filterRes("jp","baihe")
-haveTWsub("1e99fd32-b3b1-4706-967d-df9c8a3340f3")
-haveTWsub("48b6723b-d705-4be9-91d6-6c6478de8964")
+#haveTWsub("1e99fd32-b3b1-4706-967d-df9c8a3340f3")
+#haveTWsub("48b6723b-d705-4be9-91d6-6c6478de8964")
+#print(getResolution("https://www.xgcartoon.com/user/page_direct?cartoon_id=meimiaotiantangxingguangleyuandi1-4jiriyu-t-arts&chapter_id=REWTbAreLx"))
+try:
+    getResolution2("guduyaogunriyu-zhaitengguiyilang","TbKaLgwA3Z")
