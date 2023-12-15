@@ -16,6 +16,14 @@ dir_level=sys.argv[2].split(")(")
 
 url="www"#sys.argv[0]+'?'+str(dir_level+1)
 
+def pdir(data):
+    loca = 0
+    for i in range(len(data)):
+        if data[i] == "/":
+            loca = i
+    parent_node = data[:loca:]
+    return parent_node
+
 def haveTWsub(url):
     res = requests.get("https://xgct-video.vzcdn.net/%s/video_info.json"%(url)).text
     vinfo = json.loads(res)
@@ -27,23 +35,44 @@ def haveTWsub(url):
         return False
 
 def getResolution(ctid,epid): #挑選一集之後取得m3u8網址
-    res = requests.get("https://www.xgcartoon.com/user/page_direct?cartoon_id=%s&chapter_id=%s"%(ctid,epid),headers=user_agent).text
-    soup = bs4.BeautifulSoup(res,'html.parser')
-    vid = soup.find("iframe").get("src").split('=')[1].split('&')[0]
-    #print("https://xgct-video.vzcdn.net/%s/playlist.m3u8"%(vid))
-    res = requests.get("https://xgct-video.vzcdn.net/%s/playlist.m3u8"%(vid))
-    open(temp_PATH+"xgplaylist.m3u8","wb").write(res.content)
-    f = open(temp_PATH+"xgplaylist.m3u8","r")
-    m3u8list = f.readlines()
-    f.close()
-    for i in range(len(m3u8list)-1,-1,-1):
-        if m3u8list[i][0]!='#':
-            resolution = m3u8list[i].split('/')[0]
-            #xbmcplugin.addDirectoryItem(handle,sys.argv[0]+'?play&',listitem,False)
-            listitem = xbmcgui.ListItem(resolution)
-            #if haveTWsub(ctid):
-            listitem.setSubtitles(["https://xgct-video.vzcdn.net/%s/captions/TW.vtt"%(vid)])
-            xbmcplugin.addDirectoryItem(handle,"https://xgct-video.vzcdn.net/%s/%s/video.m3u8"%(vid,resolution),listitem,False)
+    try: #不固定
+        res = requests.get("https://www.xgcartoon.com/user/page_direct?cartoon_id=%s&chapter_id=%s"%(ctid,epid),headers=user_agent).text
+        soup = bs4.BeautifulSoup(res,'html.parser')
+        framesrc = soup.find("iframe").get("src")
+
+        res = requests.get(framesrc,headers=user_agent).text
+        soup = bs4.BeautifulSoup(res,'html.parser')
+        res = requests.get(soup.find("source").get("src"),headers=user_agent).text
+        
+        open(temp_PATH+"xgplaylist.m3u8","w").write(res)
+        f = open(temp_PATH+"xgplaylist.m3u8","r")
+        m3u8list = f.readlines()
+        f.close()
+        for i in range(len(m3u8list)-1,-1,-1):
+            if m3u8list[i][0]!='#':
+                resolution = m3u8list[i].split('/')[0]
+                baseurl = pdir(soup.find("source").get("src"))
+                listitem = xbmcgui.ListItem(resolution)
+                #listitem.setSubtitles(["https://xgct-video.vzcdn.net/%s/captions/TW.vtt"%(baseurl.split('/')[-1])])
+                xbmcplugin.addDirectoryItem(handle,"%s/%s/video.m3u8"%(baseurl,resolution),listitem,False)
+    except: #固定URL
+        res = requests.get("https://www.xgcartoon.com/user/page_direct?cartoon_id=%s&chapter_id=%s"%(ctid,epid),headers=user_agent).text
+        soup = bs4.BeautifulSoup(res,'html.parser')
+        vid = soup.find("iframe").get("src").split('=')[1].split('&')[0]
+        #print("https://xgct-video.vzcdn.net/%s/playlist.m3u8"%(vid))
+        res = requests.get("https://xgct-video.vzcdn.net/%s/playlist.m3u8"%(vid))
+        open(temp_PATH+"xgplaylist.m3u8","wb").write(res.content)
+        f = open(temp_PATH+"xgplaylist.m3u8","r")
+        m3u8list = f.readlines()
+        f.close()
+        for i in range(len(m3u8list)-1,-1,-1):
+            if m3u8list[i][0]!='#':
+                resolution = m3u8list[i].split('/')[0]
+                #xbmcplugin.addDirectoryItem(handle,sys.argv[0]+'?play&',listitem,False)
+                listitem = xbmcgui.ListItem(resolution)
+                #if haveTWsub(ctid):
+                listitem.setSubtitles(["https://xgct-video.vzcdn.net/%s/captions/TW.vtt"%(vid)])
+                xbmcplugin.addDirectoryItem(handle,"https://xgct-video.vzcdn.net/%s/%s/video.m3u8"%(vid,resolution),listitem,False)
             
 #getResolution("https://www.xgcartoon.com%s"%(i.get('href')))
 def getEPmenu(url): #訪問選集頁面(取得集數清單)
